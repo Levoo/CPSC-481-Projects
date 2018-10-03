@@ -10,10 +10,9 @@
 ; main function that will house our recursive function and print out the path we find
 (defun main()
   "Lisp program to find path through 7*7 grid"
- (setq giraffePath '()) ; will hold path giraffe takes 
+ (defvar giraffePath (list (list 0 0))) ; will hold path giraffe takes 
  (defvar gCurrentPosX 0)   ; global current x position 
  (defvar gCurrentPosY 0)   ; global current y position
- (write-line "b4")
  (get_next_position)
 )
 
@@ -26,12 +25,31 @@
 
 (defun get_next_position()
   ;check if valid move otherwise send back
-    (if (< gCurrentPosX 7)
-        (write (* 2 3))
+  (if (/= (check_valid_pos) 1)
+    (return-from get_next_position))
+  ;check if position has been visiteds
+  (if (/= (check_visited) 1)
+    (return-from get_next_position))
+  (write '("reached end of get_next_position"))
+)
+
+;Checks if the current x and y position has been visited
+(defun check_visited()
+  (loop for pos in giraffePath
+    do(
+      if (equal pos (list gCurrentPosX gCurrentPosY))
+        (return-from check_visited -1)
     )
-    
+  )
+  (return-from check_visited 1)
+)
+
+;Checks if current x and y position are within bounds
+(defun check_valid_pos()
+  (and (< gCurrentPosX 7) (> gCurrentPosX -1) (< gCurrentPosY 7) (> gCurrentPosY -1)
+    (return-from check_valid_pos 1) ;return valid move (1)
+  )
+  (return-from check_valid_pos 0) ;return invalid move (-1)
 )
 
 (main) ; call main, never forgetti moms spagettii
-
-
