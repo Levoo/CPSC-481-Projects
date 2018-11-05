@@ -39,9 +39,9 @@
         (if (eq var 'X) (setq var X))
         (if (eq var 'Y) (setq var Y))
         (if (eq var 'Z) (setq var Z))
-        (format t "~D * ~D  =" result var)
+        ;(format t "~D * ~D  =" result var)
         (setf result (+ (* var result)))
-        (format t "~D~%" result)
+        ;(format t "~D~%" result)
     )
     (return-from mult result)
 )
@@ -53,9 +53,9 @@
         (if (eq var 'X) (setq var X))
         (if (eq var 'Y) (setq var Y))
         (if (eq var 'Z) (setq var Z))
-        (format t "~D + ~D  =" result var)
+        ;(format t "~D + ~D  =" result var)
         (setf result (+ result var))
-        (format t "~D~%" result)
+        ;(format t "~D~%" result)
     )
     (return-from add result)
 )
@@ -73,9 +73,9 @@
         (if (eq var 'X) (setq var X))
         (if (eq var 'Y) (setq var Y))
         (if (eq var 'Z) (setq var Z))
-        (format t "~D - ~D  =" result var)
+        ;(format t "~D - ~D  =" result var)
         (setf result (- result var))
-        (format t "~D~%" result)
+        ;(format t "~D~%" result)
     )
     (return-from minus result)
 )
@@ -93,7 +93,7 @@
     (setq sign (car expr))
     (setq expr (cdr expr))
     (setf delta 0)
-    (format t "Sign: ~D  Expr: ~D~%" sign expr)
+    ;(format t "Sign: ~D  Expr: ~D~%" sign expr)
 
     ;Sending to correct arithmetic function
     (if (equal '* sign) (setf delta (mult expr)))
@@ -104,30 +104,80 @@
     (setf delta (- answer delta))
     (if (< delta 0) (setf delta (- delta)))
 
-    (format t "Result: ~A   Delta: ~A~%" result delta)
+    ;(format t "Result: ~A   Delta: ~A~%" result delta)
     (setf result 0)
     (return-from calcDelta delta)
 )
 
-;Checks current pool for best fit and crowns a champion
+;Sorts a list of lists based on the numeric value of the last element in the nested list
+(defun safe-sort(rscored-pop)
+ "Return a sorted list of scored-critter elts. Don't change given list.
+ NB, your Lisp's built-in sort fcn may damage the incoming list."
+    (let ((sacrifice-list (copy-list rscored-pop)))
+        (sort sacrifice-list
+            (lambda (scored-critter-1 scored-critter-2)
+            (< (nth (- (list-length scored-critter-1) 1) scored-critter-1) (nth (- (list-length scored-critter-2) 1) scored-critter-2)))
+        )
+        (return-from safe-sort sacrifice-list)
+    )
+)
+
+;Returns average from a list of numbers
+(defun average(deltas)
+    (setf temp 0)
+    (loop for num in deltas
+        do(setf temp (+ temp num))
+    )
+    (setf temp (/ temp (- (list-length deltas) 1)))
+    (return-from average temp)
+)
+
+;Gets last element in passed List (returns non list)
+(defun getLast(exp)
+    (setq lst (nth (- (list-length exp) 1) exp))
+    (return-from getLast lst)
+)
+
+;Checks current pool for best fit and updates various lists
+;Lists that are updated:
+;   expList         -> populated and sorted by absolute delta value
+;   generationList  -> contain the (best worst average) of the generation's delta scores
+;   chosenBois      -> top 4 expressions from the generation based on delta scores
 (defun finesse()
     ;Sets best fitness to first element of the pool list
     (setq expList (cdr expList))
-    (setq bestBoi (car expList))
+    (setf tempSum 0)
+
     ;Try every sample for every expression in pool
     (loop for expr in expList
         do(loop for sample in sampleList
             do
-            (format t "~%Fitness of: ~A  Sample:~A ~%" expr sample)
-            ;TODO: Collect return value from calcDelta
-            ;       Add the deltas from the tested expression to get sum of deltas
-            ;       Determine if it is better then previous deltas and promote to bestBoi
-            ;       Keep a list of deltas so that we can organize by fitness
-            ;       Learn how to lisp
-            (calcDelta expr sample)
+            ;(format t "~%Fitness of: ~A  Sample:~A ~%" expr sample)
+            ;Adding the delta results for a given expression
+            (setf tempSum (+ tempSum (calcDelta expr sample)))
         )
+        ;(format t "After DeltaSum:~D~%" tempSum)
+        ;Storing sum of abs deltas from given expression
+        (nconc deltaList (list tempSum))
+        ;Adding the sum of abs deltas to the end of the expression
+        ;THIS MAY CAUSE PROBLEMS LATER PLEASE CONSIDER THIS A TEMP FIX!!!!!!!! <----------------------------------------------------------
+        ;(might want to delete last element before next generation)
+        (nconc expr (list tempSum))
+        (setf tempSum 0)
     )
-    (nconc chosenBois (list bestBoi))
+    (setq deltaList (cdr deltaList))
+    (format t "List of Deltas: ~D~%" deltaList)
+
+    (setq expList (safe-sort expList))
+    ;(format t "~%~%Sorted: ~D" expList)
+    (setq best (getLast (car expList)))
+    (setq worst (getLast (nth (- (list-length expList) 1) expList)))
+    (setq avg (average deltaList))
+
+    (nconc generationList (list (list best worst avg)))
+    (nconc chosenBois (list (nth 0 expList)(nth 1 expList)(nth 2 expList)(nth 3 expList)))
+    (format t "Generation Report: ~D~%" generationList)
+    (format t "Top 4 expressions:~D" chosenBois)
 )
 
 (defun main()
@@ -136,7 +186,8 @@
     (defvar varOpList (list 'x 'y 'z))
     (defvar chosenBois (list nil))
     (defvar sampleList (list (list 0 -2 1 -16)(list -4 -5 -3 58)(list 9 8 -6 72)(list 9 -7 5 113)(list -8 7 3 150)(list 5 4 -5 20)(list 6 -4 6 41)(list -5 3 -7 -24)(list -6 -5 9 -18)(list 1 0 2 2)))
-    
+    (defvar deltaList (list nil))
+    (defvar generationList (list (list nil)))
     ;Populates expList with 50 random expressions
     (dotimes (n 50)
         (nconc expList (list (genRandExp)))
