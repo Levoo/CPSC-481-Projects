@@ -25,62 +25,6 @@
     (return-from genRandExp expression)
 )
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-;Section for evaluating expressions (* + -)
-;Uses (x y z) from sample list and substitutes with expression variables for each pass
-;Each function has unique starting result value to prevent arithmetic errors
-;Each returns evaluated answer of expression
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-;Multiplies elements in expression
-(defun mult(expr)
-    (setf result 1)
-    (loop for var in expr
-        do
-        (if (eq var 'X) (setq var X))
-        (if (eq var 'Y) (setq var Y))
-        (if (eq var 'Z) (setq var Z))
-        ;(format t "~D * ~D  =" result var)
-        (setf result (+ (* var result)))
-        ;(format t "~D~%" result)
-    )
-    (return-from mult result)
-)
-;Adds elements in expression
-(defun add(expr)
-    (setf result 0)
-    (loop for var in expr
-        do
-        (if (eq var 'X) (setq var X))
-        (if (eq var 'Y) (setq var Y))
-        (if (eq var 'Z) (setq var Z))
-        ;(format t "~D + ~D  =" result var)
-        (setf result (+ result var))
-        ;(format t "~D~%" result)
-    )
-    (return-from add result)
-)
-;Subtracts elements in expression
-(defun minus(expr)
-    ;Issue with starting result not being constant, need to account for leading variable
-    (setf result (car expr))
-    (if (eq (car expr) 'X) (setf result X))
-    (if (eq (car expr) 'Y) (setf result Y))
-    (if (eq (car expr) 'Z) (setf result Z))
-    ;Removes leading constant or variable from expression list
-    (setf expr (cdr expr))
-    (loop for var in expr
-        do
-        (if (eq var 'X) (setq var X))
-        (if (eq var 'Y) (setq var Y))
-        (if (eq var 'Z) (setq var Z))
-        ;(format t "~D - ~D  =" result var)
-        (setf result (- result var))
-        ;(format t "~D~%" result)
-    )
-    (return-from minus result)
-)
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 ;Sets (x y z) variables from sample list
 ;Splits expression into a (sign) and list of variables & constants (expr)
 ;Returns absolute value delta, this is given by running expression with (sample) variable values
@@ -90,15 +34,10 @@
     (setq Y (nth 1 sample))
     (setq Z (nth 2 sample))
     (setq answer (nth 3 sample))
-    (setq sign (car expr))
-    (setq expr (cdr expr))
     (setf delta 0)
-    ;(format t "Sign: ~D  Expr: ~D~%" sign expr)
 
-    ;Sending to correct arithmetic function
-    (if (equal '* sign) (setf delta (mult expr)))
-    (if (equal '+ sign) (setf delta (add expr)))
-    (if (equal '- sign) (setf delta (minus expr)))
+    ;Evaluating expression
+    (setf delta (eval expr))
 
     ;Absoluting delta
     (setf delta (- answer delta))
@@ -126,8 +65,7 @@
 (defun average(deltas)
     (setf temp 0)
     (loop for num in deltas
-        do(setf temp (+ temp num))
-    )
+        do(setf temp (+ temp num)))
     (setf temp (/ temp (- (list-length deltas) 1)))
     (return-from average temp)
 )
@@ -138,16 +76,20 @@
     (return-from getLast lst)
 )
 
+;Simple functions
+(defun removeTail(n list)(remove-if (constantly t) list :start (1- n) :count 1))
+(defun printGen(gen)(format t "Generation: ~D   Best: ~D    Worst: ~D   Average: ~D~%" (nth 0 gen) (nth 1 gen) (nth 2 gen) (nth 3 gen)))
+
 ;Checks current pool for best fit and updates various lists
 ;Lists that are updated:
 ;   expList         -> populated and sorted by absolute delta value
-;   generationList  -> contain the (best worst average) of the generation's delta scores
+;   generationList  -> contain the (generation best worst average) of the generation's delta scores
 ;   chosenBois      -> top 4 expressions from the generation based on delta scores
 (defun finesse()
-    ;Sets best fitness to first element of the pool list
-    (setq expList (cdr expList))
-    (setf tempSum 0)
+    ;Deletes Nil from start of expList
+    (if (eq (car expList) Nil) (setq expList (cdr expList)))
 
+    (setf tempSum 0)
     ;Try every sample for every expression in pool
     (loop for expr in expList
         do(loop for sample in sampleList
@@ -157,16 +99,13 @@
             (setf tempSum (+ tempSum (calcDelta expr sample)))
         )
         ;(format t "After DeltaSum:~D~%" tempSum)
-        ;Storing sum of abs deltas from given expression
+        ;Storing sum of abs deltas from given expression to end of list
         (nconc deltaList (list tempSum))
-        ;Adding the sum of abs deltas to the end of the expression
-        ;THIS MAY CAUSE PROBLEMS LATER PLEASE CONSIDER THIS A TEMP FIX!!!!!!!! <----------------------------------------------------------
-        ;(might want to delete last element before next generation)
         (nconc expr (list tempSum))
         (setf tempSum 0)
     )
     (setq deltaList (cdr deltaList))
-    (format t "List of Deltas: ~D~%" deltaList)
+    ;(format t "List of Deltas: ~D~%" deltaList)
 
     (setq expList (safe-sort expList))
     ;(format t "~%~%Sorted: ~D" expList)
@@ -174,10 +113,16 @@
     (setq worst (getLast (nth (- (list-length expList) 1) expList)))
     (setq avg (average deltaList))
 
-    (nconc generationList (list (list best worst avg)))
-    (nconc chosenBois (list (nth 0 expList)(nth 1 expList)(nth 2 expList)(nth 3 expList)))
-    (format t "Generation Report: ~D~%" generationList)
-    (format t "Top 4 expressions:~D" chosenBois)
+    (nconc generationList (list (list generationCount best worst avg)))
+    (if (eq (car generationList) Nil)(setq generationList (cdr generationList)))
+    (setq chosen1 (removeTail (list-length (nth 0 expList)) (nth 0 expList)))
+    (setq chosen2 (removeTail (list-length (nth 1 expList)) (nth 1 expList)))
+    (setq chosen3 (removeTail (list-length (nth 2 expList)) (nth 2 expList)))
+    (setq chosen4 (removeTail (list-length (nth 3 expList)) (nth 3 expList)))
+    (nconc chosenBois (list chosen1 chosen2 chosen3 chosen4))
+    (if (eq (car chosenBois) Nil)(setq chosenBois (cdr chosenBois)))
+    (printGen (nth generationCount generationList))
+    (format t "ChosenBois: ~D~%" chosenBois)
 )
 
 (defun main()
@@ -188,6 +133,7 @@
     (defvar sampleList (list (list 0 -2 1 -16)(list -4 -5 -3 58)(list 9 8 -6 72)(list 9 -7 5 113)(list -8 7 3 150)(list 5 4 -5 20)(list 6 -4 6 41)(list -5 3 -7 -24)(list -6 -5 9 -18)(list 1 0 2 2)))
     (defvar deltaList (list nil))
     (defvar generationList (list (list nil)))
+    (defvar generationCount 1)
     ;Populates expList with 50 random expressions
     (dotimes (n 50)
         (nconc expList (list (genRandExp)))
@@ -195,6 +141,7 @@
 
     ;Calculates fitness for population and handles populating pool stats (Mean, max, min)
     (finesse)
+    (setf generationCount (+ generationCount 1))
 )
 
 (main)
