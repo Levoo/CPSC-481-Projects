@@ -75,14 +75,37 @@
     (return-from buildMoves (cdr validMoves))
 )
 
+(defun deleteNth (n list)
+  (remove-if (constantly t) list :start (1- n) :count 1))
+
+(defun removeStuff(antPath)
+    (setq antPath (deleteNth (- (list-length antPath) 1) antPath))
+    (setq antPath (deleteNth (- (list-length antPath) 1) antPath))
+    (if (> (list-length antPath) 3)
+        (removeBackTrack antPath))
+)
 
 (defun removeBackTrack(antPath)
-    (setq prevMove (copy-list (nth (- (list-length antPath) 2) antPath)))
-    (setq recentMove (copy-list (nth (list-length antPath) antPath)))
+    (setq prevMove (copy-list (nth (- (list-length antPath) 3) antPath)))
+    (setq cMove (copy-list (nth (- (list-length antPath) 2) antPath)))
+    (setq recentMove (copy-list (nth (- (list-length antPath) 1) antPath)))
 
-    (if (eq prevMove recentMove)
-        (setq antPath (remove (nthcdr (- (list-length antPath) 2) antPath) antPath)))
-    
+    (if (and(= (nth 0 prevMove) (nth 0 recentMove))(= (nth 1 prevMove)(nth 1 recentMove)))
+        (removeStuff antPath))
+)
+
+(defun cleanPath(antPath)
+    (loop for move1 in antPath do
+        (loop for move2 in antPath do
+            (if (eq move1 move2))
+        
+        )    
+    )
+)
+
+(defun foundPath(antPath)
+    (setq done 1)
+    (setq finPath (copy-list antPath))
 )
 
 (defun main()
@@ -94,6 +117,10 @@
             ;sets the current ant location to the variable ant
             (setq ant (copy-list (nth (- (list-length antPath) 1) antPath)))
             (let ((xpos (nth 0 ant))(ypos (nth 1 ant)))
+                ;Stops program when ant reaches finish
+                (if (and (eq xpos 60)(eq ypos 40))
+                    (foundPath antPath))
+                
                 ;Only print ants that made it to bottom right quadrant
                 (if (and (and (> xpos 30)(> ypos 20)) (= done 0))
                     (format t "X:~D Y:~D~%" xpos ypos))
@@ -102,9 +129,7 @@
                 (setq numMoves (list-length moves))
                 (setq sMove (random numMoves))
                 (setq move (nth sMove moves))
-                ;If up and down can be used pick down
-                ;(if (and (and (find 3 moves)(find 1 moves))(= (list-length moves) 2))
-                ;    (setf move 1))
+                
                 (setq randNum (random 100))
                 (if (and (find 0 moves)(< randNum 11))
                     (setf move 0))
@@ -119,16 +144,9 @@
                     (nconc antPath (list (list (- xpos 1) ypos))))
                 (if (= move 3)
                     (nconc antPath (list (list xpos (- ypos 1)))))
+                
                 (if (> (list-length antPath) 3)
                     (removeBackTrack antPath))
-                
-                ;(format t "Move: ~D~%" move)
-                ;Stops program when ant reaches finish
-                (if (and (eq xpos 60)(eq ypos 40))
-                    (setq done 1))
-                (if (and (eq xpos 60)(eq ypos 40))
-                    (setq finPath antPath))
-                ;(format t "~D" antList)
             )
         );End of ant section
 
